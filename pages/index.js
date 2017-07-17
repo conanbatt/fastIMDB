@@ -3,14 +3,18 @@ import React from 'react';
 import Movie, { MovieThumb } from '../components/movie';
 import Pagination from '../components/pagination';
 
-import { searchMovies } from '../utils/imdb';
-import { debounce } from 'lodash';
+import { searchMovies, parameterize } from '../utils/imdb';
+import Router from 'next/router'
 
 export default class extends React.Component {
 
-  static async getInitialProps({ req }){
+  static async getInitialProps({ req, query }){
     //Code that fetches initial props here
-    return { query: "Jack Reacher", response: await searchMovies({query: "Jack Reacher"}) }
+    let def = query.query || "Jack Reacher"
+    return {
+      query: def,
+      response: await searchMovies({query: def})
+    }
   }
 
   constructor(props){
@@ -32,12 +36,17 @@ export default class extends React.Component {
 
   searchMovies(e){
     let query = e.target.value
+    if(!query){
+      this.setState({ query: query})
+      return
+    }
     clearTimeout(this.state.currentTimeout)
     let timeout = setTimeout(()=>{
       searchMovies({ query: query})
-      .then(json => (
+      .then(json => {
+        Router.replace({pathname: "/", query: {query: this.state.query, page: this.state.page}})
         this.setState({ response: json, movies: json.results })
-      ))
+      })
     }, 100)
     this.setState({ query: query, currentTimeout: timeout })
   }
@@ -49,6 +58,10 @@ export default class extends React.Component {
         .search {
             margin-bottom: 20px;
         }
+        .jumbotron.bg-primary {
+            background: #337ab7 !important;
+            color: white;
+        }
         `}</style>
       <div className="index">
         <div className="container">
@@ -59,7 +72,7 @@ export default class extends React.Component {
 
           <div className="input-group search">
             <input value={this.state.query}
-              className="form-control" type="text"
+              className="form-control input-lg" type="text"
               onChange={ (e)=> this.searchMovies(e)}
               placeholder="Movie title..."/>
             <span className="input-group-addon">
@@ -68,6 +81,7 @@ export default class extends React.Component {
           </div>
 
           <div className="movies">
+            { this.state.movies.length == 0 ? <p class="lead">No results found for this query. </p> : null}
             <div className="row">
               { this.state.movies.map((movie,i) =>{
                 return <MovieThumb key={i} movie={movie}/>
